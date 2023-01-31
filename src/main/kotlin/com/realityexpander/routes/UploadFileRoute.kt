@@ -67,9 +67,26 @@ fun Route.uploadFile() {
         else call.respond(HttpStatusCode.NotFound)
     }
 
+    fun buildOKHTMLPage(): String {
+        return """
+            <!DOCTYPE html>
+            <html>
+            <head>
+            <title>Email Sent</title>
+            </head>
+            <body>
+            
+            <h1>Email was sent</h1>
+            <p>Sending email completed.</p>
+            
+            </body>
+            </html>
+        """.trimIndent()
+    }
+
     // Send an email
     get("email") {
-        val from = Email("realityexpanderdev@gmail.com").apply { name = "Chris Athanas" }
+        val from = Email("realityexpandermail@gmail.com").apply { name = "Chris Athanas" }
         val subject = "Sending with SendGrid is Fun"
 //        val to = Email("realityexpander@gmail.com")
         val to = Email(call.parameters["email"]!!)
@@ -96,7 +113,7 @@ fun Route.uploadFile() {
             println(response.body)
             println(response.headers)
 
-            call.respond(HttpStatusCode.OK)
+            call.respondText(buildOKHTMLPage(), ContentType.Text.Html, HttpStatusCode.OK)
         } catch (ex: Exception) {
             println(ex.message)
             call.respond(HttpStatusCode.InternalServerError)
@@ -104,7 +121,7 @@ fun Route.uploadFile() {
     }
 
     get("email2") {
-        val from = Email("realityexpanderdev@gmail.com")
+        val from = Email("realityexpandermail@gmail.com")
         val subject = "Sending with SendGrid is Fun"
         val to = Email("test@example.com")
         val content = Content("text/plain", "and easy to do anywhere, even with Java")
@@ -127,6 +144,8 @@ fun Route.uploadFile() {
             val response = sg.api(request)
             println(response.statusCode)
             println(response.body)
+
+            call.respond(HttpStatusCode.OK)
             println(response.headers)
         } catch (ex: IOException) {
             throw ex
