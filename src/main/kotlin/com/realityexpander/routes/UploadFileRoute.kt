@@ -10,6 +10,9 @@ import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import org.intellij.markdown.flavours.commonmark.CommonMarkFlavourDescriptor
+import org.intellij.markdown.html.HtmlGenerator
+import org.intellij.markdown.parser.MarkdownParser
 import java.io.File
 import java.io.IOException
 import kotlin.random.Random
@@ -21,6 +24,17 @@ data class ExtraJson(
 )
 
 fun Route.uploadFile() {
+
+    get("/") {
+//        call.respondText(File("README.md").readText(), ContentType.Text.Html, HttpStatusCode.OK)
+
+        val src = File("README.md").readText()
+        val flavour = CommonMarkFlavourDescriptor()
+        val parsedTree = MarkdownParser(flavour).buildMarkdownTreeFromString(src)
+        val html = HtmlGenerator(src, parsedTree, flavour).generateHtml()
+
+        call.respondText(html, ContentType.Text.Html, HttpStatusCode.OK)
+    }
 
     // Upload an image
     post("image") {
@@ -109,9 +123,10 @@ fun Route.uploadFile() {
                     body = mail.build()
                 })
 
-            println(response.statusCode)
-            println(response.body)
-            println(response.headers)
+            println("statusCode:${response.statusCode}" +
+                    "body:${response.body}" +
+                    "headers:${response.headers}"
+            )
 
             call.respondText(buildOKHTMLPage(), ContentType.Text.Html, HttpStatusCode.OK)
         } catch (ex: Exception) {

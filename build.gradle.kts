@@ -32,6 +32,7 @@ dependencies {
 
     implementation("com.sendgrid:sendgrid-java:4.0.1")  // for sending emails
     implementation("com.natpryce:konfig:1.6.10.0")  // For reading config from system properties
+    implementation("org.jetbrains:markdown:0.3.6")  // For parsing markdown
 
     testImplementation("io.ktor:ktor-server-tests-jvm:$ktor_version")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
