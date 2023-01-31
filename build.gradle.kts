@@ -7,10 +7,10 @@ plugins {
     kotlin("jvm") version "1.7.10"
 }
 
-group = "com.plcoding"
+group = "com.realityexpander"
 version = "0.0.1"
 application {
-    mainClass.set("com.plcoding.ApplicationKt")
+    mainClass.set("com.realityexpander.ApplicationKt")
 
     val isDevelopment: Boolean = project.ext.has("development")
     applicationDefaultJvmArgs = listOf("-Dio.ktor.development=$isDevelopment")
@@ -29,6 +29,10 @@ dependencies {
     implementation("io.ktor:ktor-serialization-gson-jvm:$ktor_version")
     implementation("io.ktor:ktor-server-netty-jvm:$ktor_version")
     implementation("ch.qos.logback:logback-classic:$logback_version")
+
+    implementation("com.sendgrid:sendgrid-java:4.0.1")  // for sending emails
+    implementation("com.natpryce:konfig:1.6.10.0")  // For reading config from system properties
+
     testImplementation("io.ktor:ktor-server-tests-jvm:$ktor_version")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
 }

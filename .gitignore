@@ -33,4 +33,10 @@ out/
 /.nb-gradle/
 
 ### VS Code ###
-.vscode/
+.vscode/sendgrid.env
+
+## SENDGRID ##
+sendgrid.properties
+default.properties
+
+
