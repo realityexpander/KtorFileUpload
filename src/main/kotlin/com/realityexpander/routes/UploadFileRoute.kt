@@ -244,7 +244,7 @@ fun Route.uploadFile() {
         }
     }
 
-    // The Login Page Form POSTs to `/login` to send the magic link
+    // The Login Page Form sends POSTs to `/login` to send the magic link via email
     post("login") {
 
         // Get user email from the form
