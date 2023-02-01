@@ -24,21 +24,24 @@ import kotlin.random.Random
 
 typealias JWTToken = String
 
+const val JWT_COOKIE_NAME = "realityexpander_jwt"
+
 data class User(
     val id: String = Random.nextInt().toString(),
     val email: String,
     val username: String,
-//    val token: String?,
+    val token: String? = null,         // JWT token - only set if user is logged in
 //    val image: ByteArray?
     val avatarFileName: String?
 )
 
-// Users database
-//val users_db = mutableListOf(
-//    User("1",  "chris.athanas.now@gmail.com", "Chris A Now", "image_1.png")
-//)
-val users_db = loadUsersFromJsonFile() ?: mutableListOf(
-    User("1",  "chris.athanas.now@gmail.com", "Chris A Now", "image_1.png")
+var users_db = loadUsersFromJsonFile() ?: mutableListOf(
+    User(
+        "1",
+        "chris.athanas.now@gmail.com",
+        "Chris A Now",
+        avatarFileName = "image_1.png"
+    )
 )
 
 // Example ExtraJson class
@@ -85,23 +88,41 @@ fun Route.uploadFile() {
 //        val parsedTree = MarkdownParser(flavour).buildMarkdownTreeFromString(src)  // parse the markdown file
 //        val html = HtmlGenerator(src, parsedTree, flavour).generateHtml() // generate the html
 
-        val token = call.request.cookies["token_speshal"]
+        val token = call.request.cookies[JWT_COOKIE_NAME]
         token?.let {
             // check if token is valid
             val decodedToken = try {
                 val verifier = HMACVerifier.newVerifier(config[jwtSecret])
                 JWT.getDecoder().decode(token, verifier)
             } catch(e: Exception) {
-                val html = File("public/error.html").readText()
-                val htmlHydrated = html.replace("{{error}}", e.localizedMessage)
-                call.respondText(htmlHydrated, ContentType.Text.Html, HttpStatusCode.BadRequest)
+//                val html = File("public/error.html").readText()
+//                val htmlHydrated = html.replace("{{error}}", e.localizedMessage ?: "Unknown error ${e.toString()}")
+//                call.respondText(htmlHydrated, ContentType.Text.Html, HttpStatusCode.BadRequest)
 
+                revokeCookieAndUserToken()
+                call.respondRedirect("logout", true)
                 return@get
             }
 
+            // Sanity check that user is in the database
             val user = users_db.find { it.email == decodedToken.allClaims["email"] as String }
             if(user == null) {
                 respondErrorPage("User is not registered", HttpStatusCode.BadRequest)
+                return@get
+            }
+
+            // Logout check
+            if(user.token == null) {
+                //respondErrorPage("User is not logged in", HttpStatusCode.BadRequest)
+                revokeCookieAndUserToken()
+                call.respondRedirect("/", true)
+                return@get
+            }
+
+            // Check if token is expired
+            val expirationTime = (decodedToken.allClaims["exp"]  as ZonedDateTime).toEpochSecond()
+            if(expirationTime < System.currentTimeMillis()/1000) {
+                respondErrorPage("Token is expired", HttpStatusCode.BadRequest)
                 return@get
             }
 
@@ -114,6 +135,7 @@ fun Route.uploadFile() {
             return@get
         }
 
+        // Show login page
         val html = File("public/index.html").readText()
         call.respondText(html, ContentType.Text.Html, HttpStatusCode.OK)
     }
@@ -222,7 +244,7 @@ fun Route.uploadFile() {
         }
     }
 
-    // Route to Login - Form posts to `/login` to send the magic link
+    // The Login Page Form POSTs to `/login` to send the magic link
     post("login") {
 
         // Get user email from the form
@@ -259,12 +281,46 @@ fun Route.uploadFile() {
             val verifier = HMACVerifier.newVerifier(config[jwtSecret])
             JWT.getDecoder().decode(token, verifier)
         } catch(e: Exception) {
-            respondErrorPage(e.localizedMessage, HttpStatusCode.BadRequest)
+            respondErrorPage(e.localizedMessage ?: e.toString(), HttpStatusCode.BadRequest)
             return@get
         }
         println("decodedToken = $decodedToken")
 
-        call.response.cookies.append("token_speshal", token, httpOnly = true)
+        // check if token is expired
+        val expirationTime = (decodedToken.allClaims["exp"]  as ZonedDateTime).toEpochSecond()
+        if(expirationTime < System.currentTimeMillis()/1000) {
+            respondErrorPage("Token is expired", HttpStatusCode.BadRequest)
+            return@get
+        }
+
+        // check if token is for a valid user
+        val email = decodedToken.allClaims["email"] as String
+        val user = users_db.find { it.email == email }
+        if(user == null) {
+            respondErrorPage("User is not registered", HttpStatusCode.BadRequest)
+            return@get
+        }
+
+//        // Check if user is already logged in (allows only one global login at a time)
+//        if(user.token != null) {
+//            respondErrorPage("User is already logged in", HttpStatusCode.BadRequest)
+//            return@get
+//        }
+
+        // check if token is already in use
+        if(user.token == token) {
+            respondErrorPage("Token is already in use", HttpStatusCode.BadRequest)
+            return@get
+        }
+
+        // save the token for the user
+        users_db = users_db.toMutableList().apply {
+            val index = indexOf(user)
+            this[index] = user.copy(token = token)
+        }
+
+        // set the cookie
+        call.response.cookies.append(JWT_COOKIE_NAME, token, httpOnly = true)
 
         call.respondRedirect("/", true)
     }
@@ -310,6 +366,7 @@ fun Route.uploadFile() {
             userId.toString(),
             username = username,
             email = email,
+            token = null,
             avatarFileName = avatarFilename
         )
         users_db.add(newUser)
@@ -327,18 +384,14 @@ fun Route.uploadFile() {
 
     get("logout") {
         // Expire the cookie
-        call.response.cookies.append(
-            "token_speshal",
-            "",
-            path = "/",
-            expires = GMTDate.START,
-            httpOnly = true
-        )
-        call.respondText("{\"message\": \"Logged out\"}", ContentType.Text.JavaScript, HttpStatusCode.OK)
-//        call.respondRedirect("/", true)
+        revokeCookieAndUserToken()
 
-//        call.respondRedirect("/", true)
-//        return@get
+        val response = Gson().toJson(
+            object {
+                val message = "Logged out"
+            }
+        )
+        call.respondText(response, ContentType.Text.JavaScript, HttpStatusCode.OK)
     }
 
     // Send verification email to SendGrid for Setup
@@ -373,6 +426,28 @@ fun Route.uploadFile() {
             throw ex
         }
     }
+}
+
+private fun PipelineContext<Unit, ApplicationCall>.revokeCookieAndUserToken() {
+    // Remove the token from the user
+    val token = call.request.cookies[JWT_COOKIE_NAME]
+    if(token != null) {
+        val user = users_db.find { it.token == token }
+        if(user != null) {
+            users_db = users_db.toMutableList().apply {
+                val index = indexOf(user)
+                this[index] = user.copy(token = null)
+            }
+        }
+    }
+
+    call.response.cookies.append(
+        JWT_COOKIE_NAME,
+        "",
+        path = "/",
+        expires = GMTDate.START,
+        httpOnly = true
+    )
 }
 
 private suspend fun PipelineContext<Unit, ApplicationCall>.sendMagicLinkToEmail(
@@ -418,9 +493,9 @@ fun generateJWTForUser(user: User): JWTToken {
     val jwt = JWT.getEncoder()
     val token = jwt.encode(
         JWT().apply {
+            addClaim("id", user.id)
             addClaim("email", user.email)
             addClaim("name", user.username)
-            addClaim("id", user.id)
             expiration = ZonedDateTime.now().plusMinutes(20)
         },
         HMACSigner.newSHA256Signer(config[jwtSecret])
@@ -450,6 +525,8 @@ fun sendMagicLinkEmail(
         Content("text/html", contentHydrated)
     )
 
+    println("http://localhost:8080/login?token={{token}}".replace("{{token}}", token))
+
     try {
         val sendGrid = SendGrid(config[sendgridApiKey])
 
@@ -478,7 +555,7 @@ fun loadUsersCSV(): MutableList<User> {
     if(file.exists()) {
         file.forEachLine {
             val parts = it.split(",")
-            val user = User(parts[0], parts[1], parts[2], parts[3])
+            val user = User(parts[0], parts[1], parts[2], parts[3], parts[4])
             users.add(user)
         }
     }
