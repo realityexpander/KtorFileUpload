@@ -62,6 +62,7 @@ val config = systemProperties() overriding
 
 fun Route.uploadFile() {
 
+    // Serve static files (including html) from the static public directory
     get("/{path}") {
         val path = call.parameters["path"]
         val file = File("public/$path")
@@ -72,6 +73,7 @@ fun Route.uploadFile() {
         }
     }
 
+    // Serve avatar images from the static public directory
     get("/avatars/{path}") {
         val path = call.parameters["path"]
         val file = File("public/avatars/$path")
@@ -82,6 +84,7 @@ fun Route.uploadFile() {
         }
     }
 
+    // Home or Login page
     get("/") {
 //        val src = File("README.md").readText()  // read the markdown file
 //        val flavour = CommonMarkFlavourDescriptor()  // create a flavour descriptor
