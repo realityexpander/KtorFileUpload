@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Home</title>
+</head>
+<script>
+    function delete_cookie(name) {
+      // doesnt work with httpOnly cookies
+      document.cookie = name +'=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+
+      // httpOnly cookies must be deleted on the server
+      fetch('http://localhost:8080/logout')
+          .then(res => {
+             if (res.ok) {
+               return res.json()
+             }
+             return Promise.reject(res)
+          })
+          .then(data => {
+             window.location.pathname = "/"
+          })
+          .catch( err => {
+            console.log(err)
+            addErr(err.status +":"+ err.statusText)
+          })
+    }
+
+    function addErr(err) {
+        console.log(err)
+        let textElement = document.createElement("p");
+        textElement.innerText = err;
+        document.body.appendChild(textElement);
+    }
+</script>
+
+<body>
+    <h1>Home - {{username}}</h1>
+
+    <button onClick="delete_cookie('token_speshal');">Logout</button>
+
+    <br/><br/>
+
+    <script>
+       let imageElement = document.createElement("img");
+       imageElement.setAttribute('src', 'http://localhost:8080/avatars/{{avatarFileName}}');
+       imageElement.setAttribute('width', '200');
+       document.body.appendChild(imageElement);
+    </script>
+
+</body>
+</html>

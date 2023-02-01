@@ -34,6 +34,8 @@ dependencies {
     implementation("com.natpryce:konfig:1.6.10.0")  // For reading config from system, environment and properties files
     implementation("org.jetbrains:markdown:0.3.6")  // For parsing markdown
 
+    implementation("io.fusionauth:fusionauth-jwt:5.2.2")  // For encoding/decoding JWTs
+
     testImplementation("io.ktor:ktor-server-tests-jvm:$ktor_version")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
 }
